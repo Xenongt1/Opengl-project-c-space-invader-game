@@ -1,0 +1,284 @@
+#include <GL/glut.h>
+#include <stdio.h>
+#include <GL/freeglut.h>
+
+// Window size and title
+const int WINDOW_WIDTH = 800;
+const int WINDOW_HEIGHT = 600;
+const char* WINDOW_TITLE = "Space Invaders";
+
+// Spaceship properties
+const int SPACESHIP_WIDTH = 40;
+const int SPACESHIP_HEIGHT = 20;
+const float SPACESHIP_SPEED = 2.0f;
+
+// Bullet properties
+const int BULLET_WIDTH = 10;
+const int BULLET_HEIGHT = 20;
+const float BULLET_SPEED = 10.0f;
+
+// Invader properties
+const int INVADER_WIDTH = 40;
+const int INVADER_HEIGHT = 20;
+const float INVADER_SPEED = 3.0f;
+
+// Barrier properties
+const int BARRIER_WIDTH = 70;
+const int BARRIER_HEIGHT = 50;
+const int NUM_BARRIERS = 5;
+
+// Score and game over flags
+int score = 0;
+bool game_over = false;
+
+// Spaceship position and direction
+float spaceship_x = WINDOW_WIDTH / 2;
+float spaceship_y = 50;
+float spaceship_left = false;
+bool spaceship_right = false;
+
+// Bullet position and direction
+float bullet_x = -1;
+float bullet_y = -1;
+bool bullet_fired = false;
+
+// Invader position and direction
+float invader_x = WINDOW_WIDTH / 2;
+float invader_y = WINDOW_HEIGHT - INVADER_HEIGHT;
+bool invader_left = true;
+
+// Barrier positions
+float barrier_x[NUM_BARRIERS];
+float barrier_y = 100;
+
+// Function prototypes
+void display();
+void update();
+void handle_keys_up(unsigned char key, int x, int y);
+void handle_keys(unsigned char key, int x, int y);
+void handle_special_keys(int key, int x, int y);
+void draw_spaceship();
+void draw_bullet();
+void draw_invader();
+void draw_barrier(int barrier_index);
+void draw_score();
+void draw_game_over();
+
+int main(int argc, char** argv) {
+    // Initialize GLUT and create window
+    glutInit(&argc, argv);
+    glutInitDisplayMode(GLUT_RGB | GLUT_DOUBLE);
+    glutInitWindowSize(WINDOW_WIDTH, WINDOW_HEIGHT);
+    glutCreateWindow(WINDOW_TITLE);
+    glClearColor(0.0f, 0.0f, 0.0f, 0.0f);
+    glMatrixMode(GL_PROJECTION);
+    glLoadIdentity();
+    glOrtho(0, WINDOW_WIDTH, 0, WINDOW_HEIGHT, -1, 1);
+    glMatrixMode(GL_MODELVIEW);
+    glLoadIdentity();
+
+   // Set callback functions
+glutDisplayFunc(display);
+glutIdleFunc(update);
+glutKeyboardUpFunc(handle_keys_up);
+glutKeyboardFunc(handle_keys);
+glutSpecialFunc(handle_special_keys);
+
+    // Initialize barrier positions
+    float barrier_gap = (WINDOW_WIDTH - NUM_BARRIERS * BARRIER_WIDTH) / (NUM_BARRIERS + 1);
+    for (int i = 0; i < NUM_BARRIERS; i++) {
+        barrier_x[i] = (i + 1) * barrier_gap + i * BARRIER_WIDTH;
+    }
+
+    // Start the game loop
+    glutMainLoop();
+    return 0;
+}
+
+void display() {
+    // Clear the screen
+    glClear(GL_COLOR_BUFFER_BIT);
+
+    // Draw the game objects
+    draw_spaceship();
+    draw_bullet();
+    draw_invader();
+    for (int i = 0; i < NUM_BARRIERS; i++) {
+        draw_barrier(i);
+    }
+    draw_score();
+    if (game_over) {
+        draw_game_over();
+    }
+
+    // Swap buffers
+    glutSwapBuffers();
+}
+
+void update() {
+  if (!game_over) {
+        // Update the spaceship position
+        if (spaceship_left && spaceship_x - 0.3 > SPACESHIP_WIDTH / 2) {
+            spaceship_x -= 0.3;
+        }
+        if (spaceship_right && spaceship_x + SPACESHIP_WIDTH / 2 + 0.3 < WINDOW_WIDTH) {
+            spaceship_x += 0.3;
+        }// Update the bullet position
+    if (bullet_fired) {
+        bullet_y += BULLET_SPEED;
+        if (bullet_y > WINDOW_HEIGHT) {
+            bullet_fired = false;
+        }
+    }
+
+    // Update the invader position
+    if (invader_left && invader_x - INVADER_SPEED > INVADER_WIDTH / 2) {
+        invader_x -= INVADER_SPEED;
+    }
+    else {
+
+        invader_left = false;
+        invader_x += INVADER_SPEED;
+        if (invader_x + INVADER_WIDTH / 2 > WINDOW_WIDTH) {
+            invader_left = true;
+            invader_y -= INVADER_HEIGHT / 2;
+        }
+    }
+
+    // Check for collision between bullet and invader
+    if (bullet_fired && bullet_x >= invader_x - INVADER_WIDTH / 2 &&
+        bullet_x <= invader_x + INVADER_WIDTH / 2 &&
+        bullet_y >= invader_y - INVADER_HEIGHT / 2 &&
+        bullet_y <= invader_y + INVADER_HEIGHT / 2) {
+        bullet_fired = false;
+        score += 10;
+        invader_x = WINDOW_WIDTH / 2;
+        invader_y = WINDOW_HEIGHT - INVADER_HEIGHT;
+        invader_left = true;
+    }
+
+    // Check for collision between bullet and barrier
+    for (int i = 0; i < NUM_BARRIERS; i++) {
+        if (bullet_fired && bullet_x >= barrier_x[i] - BARRIER_WIDTH / 2 &&
+            bullet_x <= barrier_x[i] + BARRIER_WIDTH / 2 &&
+            bullet_y >= barrier_y - BARRIER_HEIGHT / 2 &&
+            bullet_y <= barrier_y + BARRIER_HEIGHT / 2) {
+            bullet_fired = false;
+        }
+    }
+
+    // Check for game over
+    if (invader_y - INVADER_HEIGHT / 2 < barrier_y + BARRIER_HEIGHT / 2) {
+        game_over = true;
+    }
+}
+
+// Redisplay
+glutPostRedisplay();
+}
+
+void handle_keys(unsigned char key, int x, int y) {
+switch (key) {
+case ' ':
+if (!bullet_fired) {
+bullet_fired = true;
+bullet_x = spaceship_x;
+bullet_y = spaceship_y + SPACESHIP_HEIGHT / 2;
+}
+break;
+}
+}
+
+void handle_keys_up(unsigned char key, int x, int y) {
+    switch (key) {
+        case 'a':
+        case 'A':
+            spaceship_left = false;
+            break;
+        case 'd':
+        case 'D':
+            spaceship_right = false;
+            break;
+    }
+}
+void handle_special_keys(int key, int x, int y) {
+switch (key) {
+case GLUT_KEY_LEFT:
+spaceship_left = true;
+break;
+case GLUT_KEY_RIGHT:
+spaceship_right = true;
+break;
+}
+}
+
+void draw_spaceship() {
+glPushMatrix();
+glTranslatef(spaceship_x, spaceship_y, 0);
+glColor3f(1, 1, 1);
+glBegin(GL_TRIANGLES);
+glVertex2f(-SPACESHIP_WIDTH / 2, SPACESHIP_HEIGHT / 2);
+glVertex2f(-SPACESHIP_WIDTH / 2, - SPACESHIP_HEIGHT / 2);
+glVertex2f(SPACESHIP_WIDTH / 2, 0);
+
+
+glEnd();
+glPopMatrix();
+}
+
+void draw_bullet() {
+if (bullet_fired) {
+glPushMatrix();
+glTranslatef(bullet_x, bullet_y, 0);
+glColor3f(1, 0, 0);
+glBegin(GL_QUADS);
+glVertex2f(-BULLET_WIDTH / 2, -BULLET_HEIGHT / 2);
+glVertex2f(BULLET_WIDTH / 2, -BULLET_HEIGHT / 2);
+glVertex2f(BULLET_WIDTH / 2, BULLET_HEIGHT / 2);
+glVertex2f(-BULLET_WIDTH / 2, BULLET_HEIGHT / 2);
+glEnd();
+glPopMatrix();
+}
+}
+
+void draw_invader() {
+glPushMatrix();
+glTranslatef(invader_x, invader_y, 0);
+glColor3f(0, 1, 0);
+glBegin(GL_TRIANGLES);
+glVertex2f(-INVADER_WIDTH / 2, -INVADER_HEIGHT / 2);
+glVertex2f(INVADER_WIDTH / 2, -INVADER_HEIGHT / 2);
+glVertex2f(0, INVADER_HEIGHT / 2);
+glEnd();
+glPopMatrix();
+}
+
+void draw_barrier(int barrier_index) {
+glPushMatrix();
+glTranslatef(barrier_x[barrier_index], barrier_y, 0);
+glColor3f(0, 0, 1);
+glBegin(GL_QUADS);
+glVertex2f(-BARRIER_WIDTH / 2, -BARRIER_HEIGHT / 2);
+glVertex2f(BARRIER_WIDTH / 2, -BARRIER_HEIGHT / 2);
+glVertex2f(BARRIER_WIDTH / 2, BARRIER_HEIGHT / 2);
+glVertex2f(-BARRIER_WIDTH / 2, BARRIER_HEIGHT / 2);
+glEnd();
+glPopMatrix();
+}
+
+void draw_score() {
+char score_str[10];
+sprintf(score_str, "Score: %d", score);
+glColor3f(1, 1, 1);
+glRasterPos2f(WINDOW_WIDTH - 100, WINDOW_HEIGHT - 20);
+glutBitmapString(GLUT_BITMAP_HELVETICA_18, (unsigned const char*)score_str);
+}
+
+void draw_game_over() {
+char game_over_str[20];
+sprintf(game_over_str, "GAME OVER");
+glColor3f(1, 0, 0);
+glRasterPos2f(WINDOW_WIDTH / 2 - 60, WINDOW_HEIGHT / 2);
+glutBitmapString(GLUT_BITMAP_TIMES_ROMAN_24,(unsigned const char*)game_over_str);
+}
+
